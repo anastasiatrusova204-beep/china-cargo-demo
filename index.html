@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>По шагам — Трекер закупок из Китая</title>
+<style>
+  /* ─── ДИЗАЙН-СИСТЕМА ───
+     Доминирующий: индиго (доверие, логистика)
+     Акцент: жёлтый карго (этикетки, внимание)
+     Дифференциатор: выполненный шаг = «штамп» на накладной */
+  :root {
+    --indigo:        #1B2A6B;
+    --indigo-light:  #EEF1FB;
+    --yellow:        #F5C842;
+    --yellow-dim:    #FBE89A;
+    --green:         #27AE60;
+    --green-light:   #E8F8EE;
+    --gray-900:      #1A1A2E;
+    --gray-700:      #3D3D5C;
+    --gray-400:      #9B9BB5;
+    --gray-100:      #F4F4F8;
+    --white:         #FFFFFF;
+    --bg:            #F7F7FC;
+    --font-head:     'Courier New', 'Courier', monospace;
+    --font-body:     -apple-system, 'Helvetica Neue', 'Segoe UI', sans-serif;
+    --radius-sm:     6px;
+    --radius-md:     12px;
+    --radius-lg:     18px;
+    --shadow-card:   0 2px 12px rgba(27,42,107,.10);
+    --shadow-stamp:  2px 2px 0 rgba(27,42,107,.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    font-family: var(--font-body);
+    color: var(--gray-900);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    touch-action: manipulation;
+  }
+  .phone-frame { width: 390px; min-height: 100vh; background: var(--bg); position: relative; overflow-x: hidden; }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+  /* [Critic 2026-07-16, п.г] шапка опущена под полосу-индикатор (18px) — наезд устранён */
+  .app-header {
+    background: var(--indigo);
+    padding: 12px 20px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 18px; z-index: 10;
+  }
+  .app-header .logo {
+    font-family: var(--font-head); font-size: 15px; font-weight: 700;
+    color: var(--yellow); letter-spacing: .04em; text-transform: uppercase;
+  }
+  .app-header .logo span { color: var(--white); font-weight: 400; }
+  .back-btn {
+    background: rgba(255,255,255,.12); border: none; border-radius: var(--radius-sm);
+    color: var(--white); font-family: var(--font-body); font-size: 13px;
+    padding: 6px 12px; cursor: pointer; touch-action: manipulation;
+  }
+  .back-btn:active { background: rgba(255,255,255,.22); }
+  .screen-content { flex: 1; padding: 20px 16px 110px; overflow-y: auto; }
+  .bottombar {
+    position: fixed; bottom: 0; width: 390px;
+    background: var(--white); border-top: 1px solid rgba(27,42,107,.10);
+    padding: 12px 16px 20px; z-index: 10;
+  }
+  .btn-primary {
+    width: 100%; background: var(--yellow); color: var(--gray-900);
+    border: none; border-radius: var(--radius-md);
+    font-family: var(--font-body); font-size: 16px; font-weight: 700;
+    padding: 15px 20px; cursor: pointer; touch-action: manipulation;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-primary:active { background: #E6B800; transform: scale(.98); }
+  .btn-secondary {
+    width: 100%; background: transparent; color: var(--indigo);
+    border: 1.5px solid var(--indigo); border-radius: var(--radius-md);
+    font-family: var(--font-body); font-size: 15px; font-weight: 600;
+    padding: 13px 20px; cursor: pointer; margin-top: 8px; touch-action: manipulation;
+  }
+  .btn-secondary:active { background: var(--indigo-light); }
+  .btn-ghost {
+    background: var(--indigo-light); color: var(--indigo); border: none;
+    border-radius: var(--radius-sm); font-family: var(--font-body);
+    font-size: 14px; font-weight: 600; padding: 10px 16px;
+    cursor: pointer; touch-action: manipulation;
+  }
+  /* ЭКРАН 1 */
+  .orders-welcome {
+    background: var(--indigo); margin: -20px -16px 20px;
+    padding: 20px 16px 24px; position: relative; overflow: hidden;
+  }
+  .orders-welcome::before {
+    content: ''; position: absolute; right: -20px; top: -30px;
+    width: 160px; height: 160px; border-radius: 50%;
+    background: rgba(245,200,66,.10);
+  }
+  .welcome-label {
+    font-size: 12px; font-weight: 600; color: var(--yellow);
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px;
+    font-family: var(--font-head);
+  }
+  .welcome-title { font-size: 22px; font-weight: 700; color: var(--white); line-height: 1.3; margin-bottom: 4px; }
+  .welcome-sub { font-size: 14px; color: rgba(255,255,255,.6); }
+  .stats-row { display: flex; gap: 10px; margin: 16px 0 20px; }
+  .stat-card {
+    flex: 1; background: var(--white); border-radius: var(--radius-md);
+    padding: 12px; box-shadow: var(--shadow-card); text-align: center;
+  }
+  .stat-num { font-family: var(--font-head); font-size: 22px; font-weight: 700; color: var(--indigo); display: block; }
+  .stat-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+  .section-title {
+    font-family: var(--font-head); font-size: 11px; font-weight: 700;
+    letter-spacing: .10em; text-transform: uppercase; color: var(--gray-400);
+    margin-bottom: 10px;
+  }
+  .order-card {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); padding: 14px 16px; margin-bottom: 10px;
+    cursor: pointer; border-left: 4px solid transparent; touch-action: manipulation;
+  }
+  .order-card.status-active { border-left-color: var(--yellow); }
+  .order-card.status-done { border-left-color: var(--green); }
+  .order-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .order-name { font-size: 15px; font-weight: 700; flex: 1; margin-right: 8px; }
+  .order-badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 20px; font-family: var(--font-head); white-space: nowrap; }
+  .badge-active { background: var(--yellow-dim); color: #7A5E00; }
+  .badge-done { background: var(--green-light); color: #1A6B3A; }
+  .order-meta { display: flex; gap: 12px; font-size: 12px; color: var(--gray-400); margin-bottom: 8px; }
+  .progress-wrap { background: var(--gray-100); border-radius: 4px; height: 5px; }
+  .progress-fill { height: 5px; border-radius: 4px; background: linear-gradient(90deg, var(--indigo) 0%, var(--yellow) 100%); }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-400); margin-top: 5px; }
+  .new-order-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--indigo-light); border: 1.5px dashed rgba(27,42,107,.25);
+    border-radius: var(--radius-md); padding: 16px; cursor: pointer;
+    font-size: 14px; font-weight: 600; color: var(--indigo);
+    margin-bottom: 10px; touch-action: manipulation;
+  }
+  .new-order-btn .plus {
+    width: 24px; height: 24px; background: var(--indigo); color: var(--white);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700;
+  }
+  /* ЭКРАН 2 */
+  .form-section { margin-bottom: 20px; }
+  .form-label {
+    font-size: 12px; font-weight: 700; color: var(--gray-700);
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px;
+    font-family: var(--font-head);
+  }
+  .form-input {
+    width: 100%; background: var(--white);
+    border: 1.5px solid rgba(27,42,107,.15); border-radius: var(--radius-sm);
+    font-family: var(--font-body); font-size: 15px; color: var(--gray-900);
+    padding: 12px 14px; outline: none; -webkit-appearance: none;
+  }
+  .form-input:focus { border-color: var(--indigo); }
+  .form-hint { font-size: 12px; color: var(--gray-400); margin-top: 5px; line-height: 1.4; }
+  .route-visual {
+    background: var(--white); border-radius: var(--radius-md);
+    padding: 16px; box-shadow: var(--shadow-card); margin: 20px 0;
+    display: flex; align-items: center;
+  }
+  .route-city { flex: 1; text-align: center; }
+  .route-city-name { font-size: 13px; font-weight: 700; }
+  .route-city-flag { font-size: 20px; display: block; margin-bottom: 4px; }
+  .route-arrow { flex: 0 0 50px; }
+  .route-arrow-line {
+    height: 2px; background: linear-gradient(90deg, var(--indigo), var(--yellow));
+    margin: 8px 4px; border-radius: 2px; position: relative;
+  }
+  .route-arrow-line::after { content: '▶'; position: absolute; right: -6px; top: -8px; color: var(--yellow); font-size: 12px; }
+  .estimate-box { background: var(--indigo); border-radius: var(--radius-md); padding: 18px 16px; margin: 4px 0 20px; }
+  .estimate-label { font-size: 11px; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .08em; font-family: var(--font-head); margin-bottom: 10px; }
+  .estimate-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+  .estimate-row:last-child { margin-bottom: 0; }
+  .estimate-key { font-size: 13px; color: rgba(255,255,255,.7); }
+  .estimate-val { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--white); }
+  .estimate-val.accent { color: var(--yellow); }
+  .estimate-divider { height: 1px; background: rgba(255,255,255,.12); margin: 10px 0; }
+  /* ЭКРАН 3 — ТРЕКЕР */
+  .tracker-header {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); padding: 16px; margin-bottom: 20px;
+  }
+  .tracker-order-name { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+  .tracker-order-meta { font-size: 12px; color: var(--gray-400); margin-bottom: 12px; }
+  .global-progress-bar { background: var(--gray-100); border-radius: 6px; height: 8px; overflow: hidden; margin-bottom: 6px; }
+  .global-progress-fill { height: 100%; background: linear-gradient(90deg, var(--indigo) 0%, var(--yellow) 100%); border-radius: 6px; }
+  .global-progress-label { display: flex; justify-content: space-between; font-size: 12px; font-family: var(--font-head); color: var(--gray-400); }
+  .global-progress-label strong { color: var(--indigo); }
+  .phase-group { margin-bottom: 20px; }
+  .phase-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .phase-num {
+    width: 24px; height: 24px; background: var(--indigo); color: var(--white);
+    border-radius: 50%; font-family: var(--font-head); font-size: 11px;
+    font-weight: 700; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .phase-name { font-size: 13px; font-weight: 700; color: var(--gray-700); text-transform: uppercase; letter-spacing: .06em; font-family: var(--font-head); }
+  .phase-line { flex: 1; height: 1px; background: rgba(27,42,107,.12); }
+  .tag {
+    display: inline-flex; align-items: center;
+    background: var(--indigo-light); color: var(--indigo);
+    font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border-radius: 20px; font-family: var(--font-head); letter-spacing: .04em;
+  }
+  .step-card {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); margin-bottom: 8px; overflow: hidden;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .step-card-inner { display: flex; align-items: stretch; min-height: 56px; }
+  .step-status-bar { width: 5px; flex-shrink: 0; }
+  .step-status-bar.done    { background: var(--green); }
+  .step-status-bar.active  { background: var(--yellow); }
+  .step-status-bar.pending { background: var(--gray-100); }
+  .step-main { flex: 1; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  .step-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+  .step-icon.done    { background: var(--green-light); }
+  .step-icon.active  { background: var(--yellow-dim); }
+  .step-icon.pending { background: var(--gray-100); }
+  .step-body { flex: 1; }
+  .step-name { font-size: 14px; font-weight: 600; line-height: 1.3; margin-bottom: 2px; }
+  .step-name.pending { color: var(--gray-400); }
+  .step-proof { font-size: 11px; color: var(--gray-400); font-family: var(--font-head); letter-spacing: .03em; }
+  .step-proof.done { color: var(--green); }
+  .step-proof.active { color: #7A5E00; }
+  .step-stamp { padding: 8px 12px; display: flex; align-items: center; }
+  .stamp-mark {
+    font-family: var(--font-head); font-size: 10px; font-weight: 700;
+    color: var(--green); border: 1.5px solid var(--green); border-radius: 4px;
+    padding: 2px 6px; letter-spacing: .08em; opacity: .7;
+    transform: rotate(-8deg); display: inline-block; box-shadow: var(--shadow-stamp);
+  }
+  .step-card.active-step { border: 1.5px solid var(--yellow); }
+  .step-active-body { padding: 0 14px 14px 57px; }
+  .step-desc { font-size: 13px; color: var(--gray-700); line-height: 1.5; margin-bottom: 12px; }
+  .proof-upload {
+    background: var(--indigo-light); border: 1.5px dashed rgba(27,42,107,.25);
+    border-radius: var(--radius-sm); padding: 12px 14px;
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer; touch-action: manipulation; margin-bottom: 8px;
+  }
+  .proof-upload-icon { font-size: 20px; }
+  .proof-upload-text { flex: 1; }
+  .proof-upload-title { font-size: 13px; font-weight: 600; color: var(--indigo); }
+  .proof-upload-sub { font-size: 11px; color: var(--gray-400); margin-top: 1px; }
+  .proof-uploaded {
+    background: var(--green-light); border-radius: var(--radius-sm);
+    padding: 10px 12px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .proof-uploaded-name { font-size: 13px; font-weight: 600; color: var(--green); flex: 1; }
+  .proof-uploaded-time { font-size: 11px; color: var(--gray-400); font-family: var(--font-head); }
+  .step-complete-btn {
+    background: var(--yellow); color: var(--gray-900); border: none;
+    border-radius: var(--radius-sm); font-family: var(--font-body);
+    font-size: 14px; font-weight: 700; padding: 11px 16px;
+    width: 100%; cursor: pointer; touch-action: manipulation;
+  }
+  .step-complete-btn:active { background: #E6B800; }
+  /* Кнопка перехода к шаблонам */
+  .templates-cta {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--white); border: 1.5px solid var(--yellow);
+    border-radius: var(--radius-md); padding: 14px 16px;
+    cursor: pointer; touch-action: manipulation; margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+  }
+  .templates-cta-icon {
+    width: 40px; height: 40px; background: var(--yellow-dim);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .templates-cta-body { flex: 1; }
+  .templates-cta-title { font-size: 14px; font-weight: 700; }
+  .templates-cta-sub { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+  .templates-cta-arrow { color: var(--indigo); font-size: 18px; }
+  /* ЭКРАН 4 — ШАБЛОНЫ */
+  .phrase-card {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 14px;
+  }
+  .phrase-card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px; background: var(--indigo-light);
+  }
+  .phrase-icon { font-size: 18px; }
+  .phrase-scenario { font-size: 14px; font-weight: 700; color: var(--indigo); flex: 1; }
+  .phrase-badge {
+    font-size: 10px; font-family: var(--font-head); font-weight: 700;
+    background: var(--yellow); color: var(--gray-900);
+    padding: 2px 8px; border-radius: 4px; letter-spacing: .06em;
+  }
+  .phrase-body { padding: 14px 16px; }
+  .phrase-cn {
+    font-size: 15px; line-height: 1.7; color: var(--gray-900);
+    background: var(--gray-100); border-left: 3px solid var(--yellow);
+    border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px;
+    word-break: break-all;
+  }
+  .phrase-ru {
+    font-size: 13px; line-height: 1.55; color: var(--gray-700); margin-bottom: 12px;
+  }
+  .phrase-ru::before { content: 'Перевод: '; font-weight: 700; color: var(--gray-400); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-family: var(--font-head); }
+  .copy-btn {
+    background: var(--indigo); color: var(--white); border: none;
+    border-radius: var(--radius-sm); font-family: var(--font-body);
+    font-size: 14px; font-weight: 600; padding: 11px 16px;
+    width: 100%; cursor: pointer; touch-action: manipulation;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background 0.15s;
+  }
+  .copy-btn:active { background: #142055; }
+  .copy-btn.copied { background: var(--green); }
+  .templates-hint {
+    background: var(--yellow-dim); border-radius: var(--radius-md);
+    padding: 12px 14px; font-size: 13px; line-height: 1.5;
+    color: #5C4A00; margin-bottom: 16px;
+  }
+  /* ЭКРАН 5 — ИТОГ */
+  .result-hero {
+    background: var(--indigo); border-radius: var(--radius-lg);
+    padding: 28px 20px 24px; text-align: center; margin-bottom: 20px;
+    position: relative; overflow: hidden;
+  }
+  .result-hero::before {
+    content: ''; position: absolute; top: -40px; left: -40px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: rgba(245,200,66,.08);
+  }
+  .result-checkmark {
+    width: 64px; height: 64px; background: var(--green); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 14px; position: relative; z-index: 1;
+  }
+  .result-title { font-size: 22px; font-weight: 700; color: var(--white); margin-bottom: 6px; position: relative; z-index: 1; }
+  .result-sub { font-size: 14px; color: rgba(255,255,255,.6); position: relative; z-index: 1; }
+  .waybill { background: var(--white); border-radius: var(--radius-md); box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 16px; }
+  .waybill-header { background: var(--indigo); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .waybill-header-title { font-family: var(--font-head); font-size: 11px; font-weight: 700; color: var(--yellow); letter-spacing: .10em; text-transform: uppercase; }
+  .waybill-num { font-family: var(--font-head); font-size: 11px; color: rgba(255,255,255,.5); }
+  .waybill-body { padding: 14px 16px; }
+  .waybill-row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--gray-100); }
+  .waybill-row:last-child { border-bottom: none; }
+  .waybill-key { font-size: 12px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .06em; font-family: var(--font-head); }
+  .waybill-val { font-size: 14px; font-weight: 700; font-family: var(--font-head); text-align: right; max-width: 60%; word-break: break-all; }
+  .waybill-val.green { color: var(--green); }
+  .waybill-val.yellow { color: #7A5E00; }
+  .proofs-list { margin-bottom: 20px; }
+  .proof-item {
+    background: var(--white); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-card); padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  }
+  .proof-item-icon { font-size: 16px; }
+  .proof-item-name { flex: 1; font-size: 13px; color: var(--gray-700); font-weight: 500; }
+  .proof-item-badge {
+    font-size: 10px; font-family: var(--font-head); font-weight: 700;
+    color: var(--green); background: var(--green-light);
+    padding: 2px 6px; border-radius: 4px; letter-spacing: .05em;
+  }
+  .final-stamp { text-align: center; padding: 16px; }
+  .final-stamp-mark {
+    font-family: var(--font-head); font-size: 16px; font-weight: 700;
+    color: var(--green); border: 2.5px solid var(--green); border-radius: 8px;
+    padding: 8px 18px; display: inline-block; letter-spacing: .15em;
+    transform: rotate(-5deg); box-shadow: 3px 3px 0 rgba(39,174,96,.2); opacity: .85;
+  }
+  .final-stamp-date { font-size: 11px; color: var(--gray-400); margin-top: 8px; font-family: var(--font-head); }
+  /* НАВИГАЦИЯ-ТОЧКИ */
+  .screen-indicator {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 390px; z-index: 100; background: var(--indigo);
+    display: flex; justify-content: center; gap: 6px; padding: 8px 0 4px;
+  }
+  .screen-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(245,200,66,.4); cursor: pointer; transition: width 0.2s; }
+  .screen-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
+  .text-muted { color: var(--gray-400); font-size: 12px; }
+  /* КОНТЕКСТНЫЕ ПОДСКАЗКИ — трекер сам предлагает фразу на шаге */
+  .ctx-hint {
+    background: var(--yellow-dim); border: 1.5px solid var(--yellow);
+    border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 12px;
+  }
+  .ctx-hint-label {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-head); font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: #7A5E00; margin-bottom: 8px;
+  }
+  .ctx-hint-cn { font-size: 14px; line-height: 1.65; color: var(--gray-900); margin-bottom: 6px; word-break: break-all; }
+  .ctx-hint-ru { font-size: 12px; color: var(--gray-700); line-height: 1.5; margin-bottom: 10px; }
+  .ctx-copy {
+    background: var(--gray-900); color: var(--white); border: none;
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 600;
+    padding: 9px 14px; cursor: pointer; touch-action: manipulation;
+    display: inline-flex; align-items: center; gap: 6px; width: 100%;
+    justify-content: center; font-family: var(--font-body);
+  }
+  .ctx-copy.copied { background: var(--green); }
+  /* ПАМЯТКА */
+  .memo-section { margin-bottom: 22px; }
+  /* [Вердикт владельца 2026-07-12] заголовки памятки — явные и в закрепе при прокрутке */
+  .memo-section .section-title {
+    position: sticky; top: 58px; z-index: 5;
+    background: var(--indigo); color: #fff;
+    padding: 8px 12px; border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(27,42,107,.25);
+  }
+  /* [Вердикт владельца 2026-07-12, ред. 2] sticky у tracker-header убран — наезжал на контент;
+     постоянная видимость прогресса обеспечена нижним прогресс-баром в bottombar */
+  .memo-card {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); padding: 14px 16px; margin-bottom: 8px;
+  }
+  .memo-num {
+    font-family: var(--font-head); font-size: 11px; font-weight: 700;
+    color: var(--yellow); background: var(--indigo);
+    border-radius: 4px; padding: 2px 7px; display: inline-block; margin-bottom: 6px;
+  }
+  .memo-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .memo-text { font-size: 13px; color: var(--gray-700); line-height: 1.55; }
+  .lex-row { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--gray-100); }
+  .lex-row:last-child { border-bottom: none; }
+  .lex-cn { font-size: 15px; font-weight: 700; min-width: 72px; }
+  .lex-pin { font-size: 11px; color: var(--gray-400); font-family: var(--font-head); min-width: 92px; }
+  .lex-ru { font-size: 13px; color: var(--gray-700); flex: 1; }
+  .search-term {
+    background: var(--white); border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card); padding: 14px 16px; margin-bottom: 8px;
+    border-left: 4px solid var(--yellow);
+  }
+  .search-term-cn { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .search-term-what { font-size: 13px; color: var(--gray-700); line-height: 1.5; margin-bottom: 4px; }
+  .search-term-when { font-size: 12px; color: var(--gray-400); }
+  .shop-badge {
+    display: inline-block; background: #E02020; color: var(--white);
+    font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+  }
+  /* СКРИПТ-БИЛДЕР — проактивная сборка диалога */
+  .script-builder { background: var(--indigo); border-radius: var(--radius-md); padding: 16px; margin-bottom: 16px; }
+  .script-builder-title { font-size: 15px; font-weight: 700; color: var(--white); margin-bottom: 4px; }
+  .script-builder-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: 12px; }
+  .script-result { display: none; background: rgba(255,255,255,.08); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+  .script-result.visible { display: block; }
+  .script-line { margin-bottom: 10px; }
+  .script-line:last-child { margin-bottom: 0; }
+  .script-line-step { font-family: var(--font-head); font-size: 10px; color: var(--yellow); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 3px; }
+  .script-line-cn { font-size: 13px; color: var(--white); line-height: 1.6; word-break: break-all; }
+  .script-line-ru { font-size: 11px; color: rgba(255,255,255,.55); line-height: 1.5; margin-top: 2px; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .screen.active .screen-content { animation: fadeUp 0.22s ease; }
+  @media (max-width: 389px) { .phone-frame, .bottombar, .screen-indicator { width: 100%; } }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+
+  <div class="screen-indicator" id="dots">
+    <div class="screen-dot active" data-s="0" role="button" aria-label="Экран 1: Мои заказы"></div>
+    <div class="screen-dot" data-s="1" role="button" aria-label="Экран 2: Новый заказ"></div>
+    <div class="screen-dot" data-s="2" role="button" aria-label="Экран 3: Трекер шагов"></div>
+    <div class="screen-dot" data-s="3" role="button" aria-label="Экран 4: Шаблоны для поставщика"></div>
+    <div class="screen-dot" data-s="4" role="button" aria-label="Экран 5: Памятка"></div>
+    <div class="screen-dot" data-s="5" role="button" aria-label="Экран 6: Итог заказа"></div>
+  </div>
+
+  <!-- ═══ ЭКРАН 1: МОИ ЗАКАЗЫ ═══ -->
+  <div class="screen active" id="s0">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <div style="font-size:12px;color:rgba(255,255,255,.5);font-family:var(--font-head);">beta</div>
+    </div>
+    <div class="screen-content">
+      <div class="orders-welcome">
+        <div class="welcome-label">Трекер закупок</div>
+        <div class="welcome-title">Привет, Анастасия 👋</div>
+        <div class="welcome-sub">Каждый шаг — с доказательством</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><span class="stat-num">2</span><div class="stat-label">Заказа</div></div>
+        <div class="stat-card"><span class="stat-num">1</span><div class="stat-label">Активный</div></div>
+        <div class="stat-card"><span class="stat-num">23</span><div class="stat-label">Шага</div></div>
+      </div>
+      <div class="section-title">Активный заказ</div>
+      <div class="order-card status-active" onclick="go(2)" role="button" aria-label="Открыть заказ LC-0042">
+        <div class="order-card-top">
+          <div class="order-name">Заказ LC-0042 · 3 позиции</div>
+          <div class="order-badge badge-active">В пути 🚢</div>
+        </div>
+        <div style="font-size:12px;color:var(--gray-700);line-height:1.7;margin-bottom:8px;">
+          🏺 Вазоны керамика × 4 — 3,2 кг<br>
+          🧶 Пледы шерсть × 2 — 2,4 кг<br>
+          🕯️ Подсвечники латунь × 6 — 0,5 кг
+        </div>
+        <div class="order-meta"><span>1688.com</span><span>· 6,1 кг общий</span><span>· 08.07.2026</span></div>
+        <div class="progress-wrap"><div class="progress-fill" style="width:52%;"></div></div>
+        <div class="progress-label"><span>Шаг 12 из 23</span><span style="color:var(--indigo);font-weight:700;">52%</span></div>
+      </div>
+      <div class="section-title" style="margin-top:16px;">Завершённые</div>
+      <div class="order-card status-done" onclick="go(5)" role="button" aria-label="Открыть завершённый заказ Светильники">
+        <div class="order-card-top">
+          <div class="order-name">Светильники, проект Волкова</div>
+          <div class="order-badge badge-done">Получен ✓</div>
+        </div>
+        <div class="order-meta"><span>taobao.com</span><span>· 1,8 кг</span><span>· 14.06 — 09.07</span></div>
+        <div class="progress-wrap"><div class="progress-fill" style="width:100%;"></div></div>
+        <div class="progress-label"><span>Все 23 шага</span><span style="color:var(--green);font-weight:700;">✓ Закрыт</span></div>
+      </div>
+      <div style="height:16px;"></div>
+      <div class="new-order-btn" onclick="go(1)" role="button" aria-label="Создать новый заказ">
+        <div class="plus">+</div>Новый заказ из Китая
+      </div>
+      <div style="height:8px;"></div>
+      <div class="text-muted" style="text-align:center;">Напоминание, если шаг завис &gt;48 ч</div>
+    </div>
+  </div>
+
+  <!-- ═══ ЭКРАН 2: НОВЫЙ ЗАКАЗ ═══ -->
+  <div class="screen" id="s1">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <button class="back-btn" onclick="go(0)" aria-label="Назад к списку">← Назад</button>
+    </div>
+    <div class="screen-content">
+      <div style="font-size:20px;font-weight:700;margin-bottom:6px;">Новый заказ</div>
+      <div style="display:inline-block;background:var(--indigo);color:#fff;border-radius:8px;padding:6px 12px;font-family:var(--font-head);font-size:13px;margin-bottom:8px;">Ваш номер клиента: <strong style="color:var(--yellow);">CM-38847</strong></div>
+      <div class="text-muted" style="margin-bottom:20px;">Заполните — система рассчитает сроки и стоимость</div>
+      <div class="form-section">
+        <div class="form-label">Название товара</div>
+        <input class="form-input" type="text" name="product" autocomplete="off" value="Напольные лампы японский минимализм × 2 шт.">
+      </div>
+      <div class="form-section">
+        <div class="form-label">Ссылка на товар</div>
+        <input class="form-input" type="url" name="url" autocomplete="off" value="https://detail.1688.com/offer/789654123.html">
+        <div class="form-hint">1688.com или taobao.com</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="form-section" style="flex:1;">
+          <div class="form-label">Вес, кг</div>
+          <input class="form-input" type="number" name="weight" value="2.4">
+        </div>
+        <div class="form-section" style="flex:1;">
+          <div class="form-label">Кол-во</div>
+          <input class="form-input" type="number" name="qty" value="2">
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-label">Карго-компания</div>
+        <input class="form-input" type="text" name="cargo" autocomplete="off" value="CargoMaster (Москва) — 72 ₽/кг">
+        <div class="form-hint">Ваш номер клиента: <strong style="color:var(--indigo);font-family:var(--font-head);">CM-38847</strong></div>
+      </div>
+
+      <!-- ЧЕК-ПУНКТ АЛГОРИТМА: код клиента → поле имени получателя -->
+      <div class="ctx-hint" style="background:var(--indigo-light);border-color:var(--indigo);">
+        <div class="ctx-hint-label" style="color:var(--indigo);">⛔ ШАГ 1 · Обязательно при оформлении</div>
+        <div class="ctx-hint-ru" style="margin-bottom:0;font-size:13px;color:var(--gray-900);">
+          Карго прислали адрес склада и ваш личный <strong>код клиента</strong>.
+          Код надо прописать на площадке <strong>в строке, где имя получателя</strong> — иначе склад не опознает вашу посылку.<br>
+          <span style="font-family:var(--font-head);font-size:12px;color:var(--indigo);">Пример поля имени: CM-38847 Анастасия</span>
+        </div>
+      </div>
+      <div class="route-visual">
+        <div class="route-city">
+          <span class="route-city-flag">🇨🇳</span>
+          <div class="route-city-name">Шэньчжэнь</div>
+          <div class="text-muted" style="font-size:11px;">Склад карго</div>
+        </div>
+        <div class="route-arrow"><div class="route-arrow-line"></div></div>
+        <div class="route-city">
+          <span class="route-city-flag">🛳️</span>
+          <div class="route-city-name">Транзит</div>
+          <div class="text-muted" style="font-size:11px;">14–18 дн.</div>
+        </div>
+        <div class="route-arrow"><div class="route-arrow-line"></div></div>
+        <div class="route-city">
+          <span class="route-city-flag">🇷🇺</span>
+          <div class="route-city-name">Москва</div>
+          <div class="text-muted" style="font-size:11px;">Ваш склад</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--gray-400);margin-top:-10px;margin-bottom:16px;font-family:var(--font-head);">Оценочно: 22–30 дней до получения</div>
+
+      <!-- КОНТЕКСТНАЯ ПОДСКАЗКА: трекер распознал хрупкий товар -->
+      <div class="ctx-hint">
+        <div class="ctx-hint-label">💡 ШАГ 2 из 3 · Хрупкий товар — отправить продавцу после оплаты</div>
+        <div class="ctx-hint-cn" id="hint-fragile">亲爱的，我的订单将去俄罗斯。 路很长，搬运工正在丢弃货物。 我很担心这个产品。 请妥善包装并贴上易碎物品的标签.</div>
+        <div class="ctx-hint-ru">Попросите продавца упаковать надёжно и наклеить маркировку «хрупкое» — отправьте эту фразу в чат сразу после оплаты.</div>
+        <button class="ctx-copy" onclick="copyPhrase(this, 'hint-fragile')" aria-label="Скопировать фразу про упаковку хрупкого товара"><span>📋</span> Скопировать фразу</button>
+      </div>
+
+      <!-- КОНТЕКСТНАЯ ПОДСКАЗКА: переговоры о цене при создании заказа -->
+      <div class="ctx-hint">
+        <div class="ctx-hint-label">💡 ШАГ 3 из 3 · Переговоры о цене — до размещения заказа</div>
+        <div class="ctx-hint-cn" id="hint-volume">如果价格是___元，我们准备下订单。以后订单数量会增加。</div>
+        <div class="ctx-hint-ru">«Если цена будет ___ юаней — готовы разместить заказ. Объёмы в дальнейшем будут расти.» Сильная позиция вместо «сколько скинете?».</div>
+        <button class="ctx-copy" onclick="copyPhrase(this, 'hint-volume')" aria-label="Скопировать фразу про объём и цену"><span>📋</span> Скопировать фразу</button>
+      </div>
+
+      <div class="estimate-box">
+        <div class="estimate-label">Предварительный расчёт</div>
+        <div class="estimate-row"><span class="estimate-key">Стоимость товара</span><span class="estimate-val">¥ 486 (~5 800 ₽)</span></div>
+        <div class="estimate-row"><span class="estimate-key">Доставка карго (2,4 кг)</span><span class="estimate-val">173 ₽</span></div>
+        <div class="estimate-row"><span class="estimate-key">Комиссия Alipay ~3%</span><span class="estimate-val">174 ₽</span></div>
+        <div class="estimate-divider"></div>
+        <div class="estimate-row"><span class="estimate-key" style="color:rgba(255,255,255,.9);font-weight:700;">Итого с доставкой</span><span class="estimate-val accent">≈ 6 147 ₽</span></div>
+        <div class="estimate-row"><span class="estimate-key">Срок получения</span><span class="estimate-val">до 10 авг.</span></div>
+      </div>
+      <div class="text-muted" style="text-align:center;">* Расчёт приблизительный. Финальная цена — после весового контроля карго.</div>
+    </div>
+    <div class="bottombar">
+      <button class="btn-primary" onclick="go(2)">Создать заказ и начать шаги →</button>
+      <button class="btn-secondary" onclick="go(0)">Вернуться к списку</button>
+    </div>
+  </div>
+
+  <!-- ═══ ЭКРАН 3: ТРЕКЕР ШАГОВ ═══ -->
+  <div class="screen" id="s2">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <button class="back-btn" onclick="go(0)" aria-label="К списку заказов">← Список</button>
+    </div>
+    <div class="screen-content">
+      <div class="tracker-header">
+        <div class="tracker-order-name">Заказ LC-0042 · 3 позиции</div>
+        <div class="tracker-order-meta">1688.com · вазоны ×4, пледы ×2, подсвечники ×6 · 6,1 кг · Создан 08.07.2026</div>
+        <div class="global-progress-bar"><div class="global-progress-fill" id="gpf" style="width:52%;"></div></div>
+        <div class="global-progress-label"><span>Шаг <strong id="stepNum">12</strong> из 23</span><span><strong id="stepPct">52%</strong> выполнено</span></div>
+      </div>
+
+      <!-- Переход к шаблонам -->
+      <div class="templates-cta" onclick="go(3)" role="button" aria-label="Открыть шаблоны для поставщика">
+        <div class="templates-cta-icon">💬</div>
+        <div class="templates-cta-body">
+          <div class="templates-cta-title">Шаблоны сообщений</div>
+          <div class="templates-cta-sub">Готовые фразы: упаковка, качество, трек + скрипты</div>
+        </div>
+        <div class="templates-cta-arrow">→</div>
+      </div>
+
+      <!-- Переход к памятке -->
+      <div class="templates-cta" onclick="go(4)" role="button" aria-label="Открыть памятку" style="border-color:var(--indigo);margin-top:-10px;">
+        <div class="templates-cta-icon" style="background:var(--indigo-light);">📖</div>
+        <div class="templates-cta-body">
+          <div class="templates-cta-title">Памятка: поиск, магазины, переговоры</div>
+          <div class="templates-cta-sub">Как искать товар, проверять магазин, вести торг</div>
+        </div>
+        <div class="templates-cta-arrow">→</div>
+      </div>
+
+      <!-- ЭТАП 1 -->
+      <div class="phase-group">
+        <div class="phase-title">
+          <div class="phase-num">1</div>
+          <div class="phase-name">Подготовка</div>
+          <div class="phase-line"></div>
+          <span class="tag" style="background:var(--green-light);color:#1A6B3A;">✓ 3/3</span>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Регистрация и верификация Alipay</div>
+                <div class="step-proof done">📸 Скриншот верификации · 08.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Пополнение Alipay</div>
+                <div class="step-proof done">📸 Баланс ¥ 850 · 08.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Карго: номер клиента и адрес склада</div>
+                <div class="step-proof done">🔢 CM-38847 · Шэньчжэнь, Лунхуа · 08.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ЭТАП 2 -->
+      <div class="phase-group">
+        <div class="phase-title">
+          <div class="phase-num">2</div>
+          <div class="phase-name">Оплата товара</div>
+          <div class="phase-line"></div>
+          <span class="tag" style="background:var(--green-light);color:#1A6B3A;">✓ 3/3</span>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Нашла товар на 1688, проверила продавца</div>
+                <div class="step-proof done">🔗 Рейтинг продавца 4.8/5 · 08.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Написала продавцу об упаковке (шаблон)</div>
+                <div class="step-proof done">💬 Хрупкий товар — фраза отправлена · 09.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Оплатила через Alipay</div>
+                <div class="step-proof done">📸 Чек ¥ 312 · 09.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ЭТАП 3: АКТИВНЫЙ -->
+      <div class="phase-group">
+        <div class="phase-title">
+          <div class="phase-num">3</div>
+          <div class="phase-name">Карго-склад Китай</div>
+          <div class="phase-line"></div>
+          <span class="tag" style="background:var(--yellow-dim);color:#7A5E00;">→ 2/4</span>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar done"></div>
+            <div class="step-main">
+              <div class="step-icon done">✅</div>
+              <div class="step-body">
+                <div class="step-name">Товар прибыл на склад карго</div>
+                <div class="step-proof done">📦 Трек CN789654123SZ · 11.07</div>
+              </div>
+              <div class="step-stamp"><span class="stamp-mark">СДЕЛАНО</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- АКТИВНЫЙ ШАГ -->
+        <div class="step-card active-step" id="activeStep">
+          <div class="step-card-inner">
+            <div class="step-status-bar active"></div>
+            <div class="step-main">
+              <div class="step-icon active">📷</div>
+              <div class="step-body">
+                <div class="step-name">Фото-проверка товара до упаковки</div>
+                <div class="step-proof active" id="activeProofText">⏳ Ожидает доказательства</div>
+              </div>
+            </div>
+          </div>
+          <div class="step-active-body" id="activeBody">
+            <div class="step-desc">Запросите у карго-компании фото и видео товара до упаковки. Это ваше доказательство состояния, если товар повредят при транспортировке.</div>
+            <!-- КОНТЕКСТНАЯ ПОДСКАЗКА: QC-фраза именно для этого шага -->
+            <div class="ctx-hint">
+              <div class="ctx-hint-label">💡 ПОДСКАЗКА К ШАГУ 12 · фраза именно для этого шага</div>
+              <div class="ctx-hint-cn" id="hint-qc-video">请在发货前完成质量检验，并提供检验视频。</div>
+              <div class="ctx-hint-ru">«Проведите проверку качества перед отправкой и пришлите видео проверки.» Отправьте продавцу или карго.</div>
+              <button class="ctx-copy" onclick="copyPhrase(this, 'hint-qc-video')" aria-label="Скопировать фразу о проверке качества"><span>📋</span> Скопировать фразу</button>
+            </div>
+            <div class="proof-uploaded" id="uploadedBox" style="display:none;">
+              <span>📸</span>
+              <span class="proof-uploaded-name">foto_sklad_11_07.jpg</span>
+              <span class="proof-uploaded-time">11.07 · 14:32</span>
+            </div>
+            <div class="proof-upload" id="uploadArea" onclick="simulateUpload()" role="button" aria-label="Загрузить фото-доказательство">
+              <span class="proof-upload-icon">📎</span>
+              <div class="proof-upload-text">
+                <div class="proof-upload-title">Загрузить фото от карго</div>
+                <div class="proof-upload-sub">JPG, PNG, MP4 — до 50 МБ</div>
+              </div>
+              <span style="color:var(--indigo);font-size:20px;font-weight:700;">+</span>
+            </div>
+            <button class="step-complete-btn" id="completeBtn" onclick="completeStep()">Подтвердить шаг ✓</button>
+          </div>
+        </div>
+
+        <div class="step-card" id="nextStepCard">
+          <div class="step-card-inner">
+            <div class="step-status-bar pending"></div>
+            <div class="step-main">
+              <div class="step-icon pending">📦</div>
+              <div class="step-body">
+                <div class="step-name pending">Консолидация и упаковка</div>
+                <div class="step-proof">Скриншот кабинета карго</div>
+              </div>
+            </div>
+            <!-- [Вердикт владельца 2026-07-12] подсказка появляется В КОНТЕКСТЕ после выполнения шага 12 -->
+            <div class="step-active-body" id="nextHint" style="display:none;">
+              <div class="ctx-hint">
+                <div class="ctx-hint-label">💡 ПОДСКАЗКА К ШАГУ 13 · появилась после подтверждения шага 12</div>
+                <div class="ctx-hint-cn" id="hint-consolid">可以看一下货物是怎么包装的吗？</div>
+                <div class="ctx-hint-ru">«Можно посмотреть, как упакован товар?» — запросите у карго скриншот кабинета и фото упаковки для этого шага.</div>
+                <button class="ctx-copy" onclick="copyPhrase(this, 'hint-consolid')" aria-label="Скопировать фразу об упаковке"><span>📋</span> Скопировать фразу</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar pending"></div>
+            <div class="step-main">
+              <div class="step-icon pending">🚢</div>
+              <div class="step-body">
+                <div class="step-name pending">Отправка в Россию</div>
+                <div class="step-proof">Трек-номер РФ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ЭТАП 4 -->
+      <div class="phase-group">
+        <div class="phase-title">
+          <div class="phase-num">4</div>
+          <div class="phase-name">Получение в РФ</div>
+          <div class="phase-line"></div>
+          <span class="tag" style="background:var(--gray-100);color:var(--gray-400);">0/2</span>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar pending"></div>
+            <div class="step-main">
+              <div class="step-icon pending">🎬</div>
+              <div class="step-body">
+                <div class="step-name pending">Видео распаковки при получении</div>
+                <div class="step-proof">Защита при повреждении</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="step-card">
+          <div class="step-card-inner">
+            <div class="step-status-bar pending"></div>
+            <div class="step-main">
+              <div class="step-icon pending">🏁</div>
+              <div class="step-body">
+                <div class="step-name pending">Заказ закрыт</div>
+                <div class="step-proof">Все данные зафиксированы</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottombar">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
+        <div style="flex:1;font-size:13px;color:var(--gray-700);">🔔 Напоминание: <strong>13.07 в 10:00</strong></div>
+        <button class="btn-ghost" onclick="go(0)">Список</button>
+      </div>
+      <div class="progress-wrap"><div class="progress-fill" id="bottomFill" style="width:52%;"></div></div>
+      <div class="progress-label" style="margin-top:6px;">
+        <span class="text-muted">Шаг <span id="bn">12</span> из 23</span>
+        <span style="color:var(--indigo);font-weight:700;font-size:12px;"><span id="bp">52%</span> выполнено</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ЭКРАН 4: ШАБЛОНЫ ДЛЯ ПОСТАВЩИКА ═══ -->
+  <div class="screen" id="s3">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <button class="back-btn" onclick="go(2)" aria-label="Назад к трекеру">← Трекер</button>
+    </div>
+    <div class="screen-content">
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Шаблоны сообщений 💬</div>
+      <div style="background:var(--gray-100);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;line-height:1.65;">
+        <strong>Как пользоваться:</strong><br>
+        1️⃣ Выберите ситуацию → 2️⃣ нажмите «Скопировать» → 3️⃣ вставьте фразу <strong>в чат с продавцом</strong> на 1688 / Taobao / WeChat.<br>
+        <span style="color:var(--gray-700);">🇨🇳 — фразы поставщику (китайский) · 🇷🇺 — ответ вашему клиенту (русский)</span>
+      </div>
+
+      <div class="templates-hint">
+        💡 Продавцы отвечают быстрее на китайском. Вежливое обращение «亲爱的» (дорогой) — норма делового чата в Китае.
+      </div>
+
+      <!-- СКРИПТ-БИЛДЕР: проактивная сборка диалога по сценариям -->
+      <div class="script-builder">
+        <div class="script-builder-title">🧩 Собрать скрипт диалога</div>
+        <div class="script-builder-sub">Выберите ситуацию — трекер соберёт готовый скрипт из фраз</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;" onclick="buildScript('contact')">🇨🇳 Первый контакт</button>
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;" onclick="buildScript('product')">🇨🇳 Уточнение товара</button>
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;" onclick="buildScript('packing')">🇨🇳 Упаковка и фото</button>
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;" onclick="buildScript('delivery')">🇨🇳 Доставка</button>
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;" onclick="buildScript('bargain')">🇨🇳 Торг</button>
+          <button class="btn-ghost" style="font-size:12px;padding:8px 10px;background:var(--yellow-dim);color:#7A5E00;" onclick="buildScript('factory')">🇷🇺 Клиент просит фабрику</button>
+        </div>
+        <div class="script-result" id="scriptResult"></div>
+        <button class="ctx-copy" id="scriptCopyBtn" style="display:none;" onclick="copyScript(this)"><span>📋</span> Скопировать весь скрипт</button>
+      </div>
+
+      <div class="section-title" style="margin:16px 0 10px;">🇨🇳 Вы → поставщику · готовые фразы</div>
+
+      <!-- Сценарий 1: Хрупкий товар (шаблон владельца, дословно) -->
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">📦</span>
+          <span class="phrase-scenario">Хрупкий товар — просьба об упаковке</span>
+          <span class="phrase-badge">ТОП</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-1">亲爱的，我的订单将去俄罗斯。 路很长，搬运工正在丢弃货物。 我很担心这个产品。 请妥善包装并贴上易碎物品的标签.</div>
+          <div class="phrase-ru">«Дорогой продавец, мой заказ поедет в Россию. Путь долгий, грузчики бросают грузы. Я переживаю за этот товар. Пожалуйста, упакуйте надёжно и наклейте маркировку "хрупкое".»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-1')" aria-label="Скопировать фразу про хрупкий товар">
+            <span>📋</span> Скопировать фразу
+          </button>
+        </div>
+      </div>
+
+      <!-- Сценарий 2: Уточнить размер и вес -->
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">📐</span>
+          <span class="phrase-scenario">Уточнить размер и вес</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-2">您好，请问这个商品的具体尺寸和重量是多少？我需要计算国际运费。谢谢！</div>
+          <div class="phrase-ru">«Здравствуйте, подскажите точные размеры и вес этого товара? Мне нужно рассчитать международную доставку. Спасибо!»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-2')" aria-label="Скопировать фразу про размер и вес">
+            <span>📋</span> Скопировать фразу
+          </button>
+        </div>
+      </div>
+
+      <!-- Сценарий 3: Фото перед отправкой -->
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">📷</span>
+          <span class="phrase-scenario">Попросить фото перед отправкой</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-3">您好，发货前请拍几张商品的实物照片发给我，我想确认商品的状态。谢谢！</div>
+          <div class="phrase-ru">«Здравствуйте, перед отправкой сфотографируйте, пожалуйста, товар и пришлите мне фото — хочу убедиться в его состоянии. Спасибо!»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-3')" aria-label="Скопировать фразу про фото">
+            <span>📋</span> Скопировать фразу
+          </button>
+        </div>
+      </div>
+
+      <!-- Сценарий 4: Узнать трек-номер -->
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">🔍</span>
+          <span class="phrase-scenario">Узнать трек-номер</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-4">您好，请问订单发货了吗？麻烦告诉我快递单号，我需要跟踪包裹。谢谢！</div>
+          <div class="phrase-ru">«Здравствуйте, заказ уже отправлен? Пришлите, пожалуйста, номер накладной (трек-номер) — мне нужно отслеживать посылку. Спасибо!»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-4')" aria-label="Скопировать фразу про трек-номер">
+            <span>📋</span> Скопировать фразу
+          </button>
+        </div>
+      </div>
+
+      <div class="section-title" style="margin-top:20px;">Контроль качества</div>
+
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">🎬</span>
+          <span class="phrase-scenario">Видео проверки перед отправкой</span>
+          <span class="phrase-badge">Проверка</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-5">请在发货前完成质量检验，并提供检验视频。</div>
+          <div class="phrase-ru">«Проведите проверку качества перед отправкой и пришлите видео проверки.»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-5')" aria-label="Скопировать фразу про видео проверки"><span>📋</span> Скопировать фразу</button>
+        </div>
+      </div>
+
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">⛔</span>
+          <span class="phrase-scenario">Несоответствие образцу — отказ</span>
+          <span class="phrase-badge">Проверка</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-6">如果产品与样品不一致，我们将拒收该批货物。</div>
+          <div class="phrase-ru">«Если товар будет отличаться от образца — откажемся принимать партию.»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-6')" aria-label="Скопировать фразу про несоответствие образцу"><span>📋</span> Скопировать фразу</button>
+        </div>
+      </div>
+
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">🏭</span>
+          <span class="phrase-scenario">Реальные фото производства</span>
+          <span class="phrase-badge">Проверка</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-7">请提供工厂真实的生产照片和视频，不接受宣传图片。</div>
+          <div class="phrase-ru">«Пришлите реальные фото и видео производства — рекламные картинки не принимаются.»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-7')" aria-label="Скопировать фразу про реальные фото производства"><span>📋</span> Скопировать фразу</button>
+        </div>
+      </div>
+
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">🔍</span>
+          <span class="phrase-scenario">Проверить каждую единицу</span>
+          <span class="phrase-badge">Проверка</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-8">请在包装前逐件检查产品，有瑕疵的请更换后再发货。</div>
+          <div class="phrase-ru">«Перед упаковкой проверьте каждую единицу товара; бракованные замените до отправки.»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-8')" aria-label="Скопировать фразу про поштучную проверку"><span>📋</span> Скопировать фразу</button>
+        </div>
+      </div>
+
+      <div class="phrase-card">
+        <div class="phrase-card-header">
+          <span class="phrase-icon">📑</span>
+          <span class="phrase-scenario">Порядок решения при браке</span>
+          <span class="phrase-badge">Проверка</span>
+        </div>
+        <div class="phrase-body">
+          <div class="phrase-cn" id="cn-9">收到货后如发现质量问题，我们会提供照片和视频作为证据，请确认售后处理方式。</div>
+          <div class="phrase-ru">«Если после получения обнаружим проблемы с качеством — предоставим фото и видео как доказательство. Подтвердите порядок постпродажного урегулирования.»</div>
+          <button class="copy-btn" onclick="copyPhrase(this, 'cn-9')" aria-label="Скопировать фразу про урегулирование брака"><span>📋</span> Скопировать фразу</button>
+        </div>
+      </div>
+
+      <div class="text-muted" style="text-align:center;margin-top:4px;">
+        Новые сценарии добавляются по запросам пользователей
+      </div>
+    </div>
+    <div class="bottombar">
+      <button class="btn-primary" onclick="go(2)">← Вернуться к шагам заказа</button>
+    </div>
+  </div>
+
+  <!-- ═══ ЭКРАН 5: ПАМЯТКА ═══ -->
+  <div class="screen" id="s4">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <button class="back-btn" onclick="go(2)" aria-label="Назад к трекеру">← Трекер</button>
+    </div>
+    <div class="screen-content">
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px;">Памятка 📖</div>
+      <div class="text-muted" style="margin-bottom:16px;">Поиск товара → Проверка магазина → Переговоры → Контроль качества → Приёмка</div>
+
+      <!-- 1. ПОИСК ТОВАРА -->
+      <div class="memo-section">
+        <div class="section-title">1 · Поиск товара — что набирать в 1688 / Taobao</div>
+        <div class="search-term">
+          <div class="search-term-cn">原单 <span style="font-size:12px;color:var(--gray-400);font-weight:400;">yuándān</span></div>
+          <div class="search-term-what">Найдёт «оригинальный» товар: произведённый по стандартам зарубежного бренда.</div>
+          <div class="search-term-when">Когда нужно качество бренда без наценки бренда.</div>
+        </div>
+        <div class="search-term">
+          <div class="search-term-cn">尾货 <span style="font-size:12px;color:var(--gray-400);font-weight:400;">wěihuò</span></div>
+          <div class="search-term-what">Найдёт товарные остатки / стоки фабрик.</div>
+          <div class="search-term-when">Когда важна минимальная цена и подходит ограниченный ассортимент.</div>
+        </div>
+        <div class="search-term">
+          <div class="search-term-cn">外贸 <span style="font-size:12px;color:var(--gray-400);font-weight:400;">wàimào</span></div>
+          <div class="search-term-what">Найдёт внешнеторговый товар — экспортное качество.</div>
+          <div class="search-term-when">Когда нужен товар, изначально сделанный на экспорт.</div>
+        </div>
+        <div class="search-term">
+          <div class="search-term-cn">出口 <span style="font-size:12px;color:var(--gray-400);font-weight:400;">chūkǒu</span></div>
+          <div class="search-term-what">Найдёт экспортный товар — часто с более высоким контролем качества.</div>
+          <div class="search-term-when">Комбинировать с категорией товара.</div>
+        </div>
+
+        <div class="ctx-hint">
+          <div class="ctx-hint-label">🔎 Готовый запрос · Декор для интерьера</div>
+          <div class="ctx-hint-cn" id="hint-search-decor">外贸 原单 搭配套装 名媛风</div>
+          <div class="ctx-hint-ru">«Экспортное качество, готовый комплект, роскошный стиль» — скопируйте целиком в поиск 1688/Taobao.</div>
+          <button class="ctx-copy" onclick="copyPhrase(this, 'hint-search-decor')" aria-label="Скопировать поисковый запрос для декора"><span>📋</span> Скопировать запрос</button>
+        </div>
+
+        <div class="memo-card">
+          <div class="memo-title">Формула поиска брендов</div>
+          <div class="memo-text">
+            <strong style="font-family:var(--font-head);">[первая буква бренда]家 [категория]</strong><br>
+            Пример: <strong>Z家 毛毯</strong> — плед в стиле Zara.<br>
+            家 (jiā) = «дом/семья» — так продавцы маскируют бренд в названии лота.
+          </div>
+        </div>
+      </div>
+
+      <!-- 0. ГДЕ ИСКАТЬ -->
+      <div class="memo-section">
+        <div class="section-title">Где искать</div>
+        <div class="memo-card">
+          <div class="memo-title">1688 — оптовая площадка</div>
+          <div class="memo-text">Цены на 20–50% ниже розницы. Для партий и закупок под клиента.</div>
+        </div>
+        <div class="memo-card">
+          <div class="memo-title">Taobao — розничная площадка</div>
+          <div class="memo-text">Проще найти брендовые и качественные вещи. Для штучных и личных заказов.</div>
+        </div>
+        <div class="memo-card">
+          <div class="memo-title">Другие площадки</div>
+          <div class="memo-text">
+            <strong>JD (京东)</strong> — электроника и техника с гарантией подлинности.<br>
+            <strong>Alibaba</strong> — международный опт напрямую с фабрик, для крупных партий.<br>
+            <strong>Poizon (得物, «Дэу»)</strong> — кроссовки и стритвир с проверкой оригинальности.<br>
+            <strong>Weidian (微店)</strong> — витрины мелких продавцов и фабрик, часто то, чего нет на Taobao.<br>
+            <strong>Xianyu (闲鱼)</strong> — вторичка и остатки, самые низкие цены.
+          </div>
+        </div>
+        <div class="memo-card">
+          <div class="memo-title">База поставщиков — то, чего нет на площадках</div>
+          <div class="memo-text">Есть контакты с товарами, которых нет на площадках: добавляйте в друзья (WeChat), смотрите моменты, спрашивайте каталоги.</div>
+        </div>
+      </div>
+
+      <!-- 2. ПРОВЕРКА МАГАЗИНА -->
+      <div class="memo-section">
+        <div class="section-title">2 · Как распознать оригинальный магазин</div>
+        <div class="memo-card">
+          <div class="memo-title"><span class="shop-badge">天猫 Tmall</span>&nbsp; Значок Tmall</div>
+          <div class="memo-text">Яркий красный логотип в результатах поиска и карточке товара. Премиум-сегмент: продают только юрлица с подтверждёнными сертификатами качества.</div>
+        </div>
+        <div class="memo-card">
+          <div class="memo-title">旗舰店 <span style="color:var(--gray-400);font-size:12px;font-weight:400;">Qíjiàndiàn</span> — Флагманский</div>
+          <div class="memo-text">Магазин принадлежит самому бренду. Высший уровень доверия.</div>
+        </div>
+        <div class="memo-card">
+          <div class="memo-title">专卖店 <span style="color:var(--gray-400);font-size:12px;font-weight:400;">Zhuānmàidiàn</span> — Авторизованный</div>
+          <div class="memo-text">Официальный магазин дилера бренда.</div>
+        </div>
+        <div class="memo-card" style="background:var(--indigo-light);">
+          <div class="memo-title">Быстрая проверка официального представителя</div>
+          <div class="memo-text">
+            1. Вбить название бренда в поиск Taobao.<br>
+            2. Перейти во вкладку магазинов (店铺).<br>
+            3. Искать продавцов с красным значком Tmall.
+          </div>
+        </div>
+
+        <div class="memo-card">
+          <div class="memo-title">Оригинальные магазины брендов на Taobao/Tmall</div>
+          <div class="memo-text" style="margin-bottom:6px;"><strong>Одежда:</strong>
+            <a href="https://hm.tmall.com/" style="color:var(--indigo);">H&amp;M</a> ·
+            <a href="https://zara.tmall.com/" style="color:var(--indigo);">ZARA</a> ·
+            <a href="https://mango.tmall.com/" style="color:var(--indigo);">MANGO</a> ·
+            <a href="https://uniqlo.tmall.com/" style="color:var(--indigo);">UNIQLO</a> ·
+            <a href="https://oysho.tmall.com/" style="color:var(--indigo);">OYSHO</a> ·
+            <a href="https://gap.tmall.com/" style="color:var(--indigo);">GAP</a> ·
+            <a href="https://levis.tmall.com/" style="color:var(--indigo);">LEVI'S</a> ·
+            <a href="https://thenorthface.tmall.com/" style="color:var(--indigo);">THE NORTH FACE</a> ·
+            <a href="https://victoriassecretcn.tmall.com/" style="color:var(--indigo);">VICTORIA'S SECRET</a>
+          </div>
+          <div class="memo-text" style="margin-bottom:6px;"><strong>Обувь и спорт:</strong>
+            <a href="https://nike.tmall.com/" style="color:var(--indigo);">NIKE</a> ·
+            <a href="https://adidas.tmall.com/" style="color:var(--indigo);">ADIDAS</a> ·
+            <a href="https://puma.tmall.com/" style="color:var(--indigo);">PUMA</a> ·
+            <a href="https://newbalance.tmall.com/" style="color:var(--indigo);">NEW BALANCE</a> ·
+            <a href="https://skechersyd.tmall.com/" style="color:var(--indigo);">SKECHERS</a> ·
+            <a href="https://lining.tmall.com/" style="color:var(--indigo);">LI NING</a> ·
+            <a href="https://crocs.tmall.com/" style="color:var(--indigo);">CROCS</a> ·
+            <a href="https://ugg.tmall.com/" style="color:var(--indigo);">UGG</a>
+          </div>
+          <div class="memo-text" style="margin-bottom:6px;"><strong>Электроника:</strong>
+            <a href="https://apple.tmall.com/" style="color:var(--indigo);">APPLE STORE</a> ·
+            <a href="https://samsung.tmall.com/" style="color:var(--indigo);">SAMSUNG</a> ·
+            <a href="https://huaweistore.tmall.com/" style="color:var(--indigo);">HUAWEI</a>
+          </div>
+          <div class="memo-text"><strong>Другое:</strong>
+            <a href="https://disney.tmall.com/" style="color:var(--indigo);">DISNEY</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. ПЕРЕГОВОРЫ -->
+      <div class="memo-section">
+        <div class="section-title">3 · Переговоры — 5 принципов</div>
+        <div class="memo-card">
+          <span class="memo-num">01</span>
+          <div class="memo-title">Всё начинается до переписки</div>
+          <div class="memo-text">Изучите цены на 1688, предложения на Alibaba, отзывы и похожих поставщиков — чтобы понимать реальную цену, а не «специально для иностранца».</div>
+        </div>
+        <div class="memo-card">
+          <span class="memo-num">02</span>
+          <div class="memo-title">Объём = аргумент</div>
+          <div class="memo-text">Даже при тестовой партии покажите перспективу роста. Не «сколько скинете?» (слабая позиция), а «если цена будет X — готовы разместить заказ».</div>
+        </div>
+        <div class="memo-card">
+          <span class="memo-num">03</span>
+          <div class="memo-title">Первое предложение — не финальное</div>
+          <div class="memo-text">Не называйте максимальную цену сразу. Торг — часть процесса; быстрое согласие = поставщик думает, что продешевил.</div>
+        </div>
+        <div class="memo-card">
+          <span class="memo-num">04</span>
+          <div class="memo-title">WeChat решает больше, чем кажется</div>
+          <div class="memo-text">Реальные переговоры идут там: быстрее ответы, проще фото/видео, меньше формальности, легче контакт.</div>
+        </div>
+        <div class="memo-card">
+          <span class="memo-num">05</span>
+          <div class="memo-title">Тон общения</div>
+          <div class="memo-text">Жёсткий заход — перестанут стараться. Работают вежливость, конкретика, спокойный диалог, уважение.</div>
+        </div>
+        <div class="templates-hint" style="margin-top:8px;">
+          ⭐ Главное: поставщики быстро понимают, кто просто спрашивает цену, а кто умеет работать — вторым дают больше.
+        </div>
+      </div>
+
+      <!-- 4. КОНТРОЛЬ КАЧЕСТВА -->
+      <div class="memo-section">
+        <div class="section-title">4 · Контроль качества</div>
+        <div class="memo-card">
+          <div class="memo-text">Готовые QC-фразы (видео проверки, реальные фото производства, отказ при несоответствии) — на экране <strong style="color:var(--indigo);cursor:pointer;" onclick="go(3)">«Шаблоны» →</strong></div>
+        </div>
+      </div>
+
+      <!-- 5. ПРИЁМКА -->
+      <div class="memo-section">
+        <div class="section-title">5 · Приёмка</div>
+        <div class="memo-card">
+          <div class="memo-text">Видео распаковки при получении — обязательный шаг трекера. При несоответствии образцу: фраза «如果产品与样品不一致，我们将拒收该批货物» (откажемся принимать партию) — в «Шаблонах».</div>
+        </div>
+      </div>
+
+      <!-- СЛОВАРЬ ЛЕКСИКИ -->
+      <div class="memo-section">
+        <div class="section-title">Словарь переговоров</div>
+        <div class="memo-card">
+          <div class="lex-row"><span class="lex-cn">谈判</span><span class="lex-pin">tánpàn</span><span class="lex-ru">переговоры</span></div>
+          <div class="lex-row"><span class="lex-cn">价格</span><span class="lex-pin">jiàgé</span><span class="lex-ru">цена</span></div>
+          <div class="lex-row"><span class="lex-cn">供应商</span><span class="lex-pin">gōngyìngshāng</span><span class="lex-ru">поставщик</span></div>
+          <div class="lex-row"><span class="lex-cn">订单</span><span class="lex-pin">dìngdān</span><span class="lex-ru">заказ</span></div>
+          <div class="lex-row"><span class="lex-cn">合作</span><span class="lex-pin">hézuò</span><span class="lex-ru">сотрудничество</span></div>
+          <div class="lex-row"><span class="lex-cn">沟通</span><span class="lex-pin">gōutōng</span><span class="lex-ru">общение</span></div>
+          <div class="lex-row"><span class="lex-cn">数量</span><span class="lex-pin">shùliàng</span><span class="lex-ru">объём</span></div>
+          <div class="lex-row"><span class="lex-cn">折扣</span><span class="lex-pin">zhékòu</span><span class="lex-ru">скидка</span></div>
+          <div class="lex-row"><span class="lex-cn">条件</span><span class="lex-pin">tiáojiàn</span><span class="lex-ru">условия</span></div>
+          <div class="lex-row"><span class="lex-cn">信任</span><span class="lex-pin">xìnrèn</span><span class="lex-ru">доверие</span></div>
+          <div class="lex-row"><span class="lex-cn">外贸</span><span class="lex-pin">wàimào</span><span class="lex-ru">внешняя торговля</span></div>
+          <div class="lex-row"><span class="lex-cn">尾货</span><span class="lex-pin">wěihuò</span><span class="lex-ru">товарный остаток</span></div>
+          <div class="lex-row"><span class="lex-cn">原单</span><span class="lex-pin">yuándān</span><span class="lex-ru">товар по стандартам зарубежной компании</span></div>
+        </div>
+      </div>
+
+      <!-- ЧИСЛА ДЛЯ ЦЕН И ОБЪЁМОВ -->
+      <div class="memo-section">
+        <div class="section-title">Числа для цен и объёмов</div>
+        <div class="templates-hint">⚠️ Главная ловушка: 万 (wàn) = 10 000, а не тысяча. 3万 = 30 000 юаней.</div>
+        <div class="memo-card">
+          <div class="lex-row"><span class="lex-cn">一百</span><span class="lex-pin">yìbǎi</span><span class="lex-ru">100</span></div>
+          <div class="lex-row"><span class="lex-cn">五百</span><span class="lex-pin">wǔbǎi</span><span class="lex-ru">500</span></div>
+          <div class="lex-row"><span class="lex-cn">一千</span><span class="lex-pin">yìqiān</span><span class="lex-ru">1 000</span></div>
+          <div class="lex-row"><span class="lex-cn">一万</span><span class="lex-pin">yíwàn</span><span class="lex-ru">10 000</span></div>
+          <div class="lex-row"><span class="lex-cn">元 / 块</span><span class="lex-pin">yuán / kuài</span><span class="lex-ru">юань (块 — разговорное)</span></div>
+          <div class="lex-row"><span class="lex-cn">多少钱？</span><span class="lex-pin">duōshǎo qián</span><span class="lex-ru">сколько стоит?</span></div>
+          <div class="lex-row"><span class="lex-cn">太贵了</span><span class="lex-pin">tài guì le</span><span class="lex-ru">слишком дорого</span></div>
+          <div class="lex-row"><span class="lex-cn">便宜一点</span><span class="lex-pin">piányí yìdiǎn</span><span class="lex-ru">подешевле, пожалуйста</span></div>
+        </div>
+      </div>
+
+      <!-- ПОВСЕДНЕВНЫЕ ФРАЗЫ ЧАТА -->
+      <div class="memo-section">
+        <div class="section-title">Повседневные фразы чата</div>
+        <div class="memo-card">
+          <div class="lex-row"><span class="lex-cn">你好老板</span><span class="lex-pin">nǐ hǎo lǎobǎn</span><span class="lex-ru">здравствуйте, босс (обращение к продавцу)</span></div>
+          <div class="lex-row"><span class="lex-cn">在吗？</span><span class="lex-pin">zài ma</span><span class="lex-ru">вы на месте?</span></div>
+          <div class="lex-row"><span class="lex-cn">有货吗？</span><span class="lex-pin">yǒu huò ma</span><span class="lex-ru">есть в наличии?</span></div>
+          <div class="lex-row"><span class="lex-cn">请稍等</span><span class="lex-pin">qǐng shāo děng</span><span class="lex-ru">подождите, пожалуйста</span></div>
+          <div class="lex-row"><span class="lex-cn">好的</span><span class="lex-pin">hǎo de</span><span class="lex-ru">хорошо / ок</span></div>
+          <div class="lex-row"><span class="lex-cn">什么时候发货？</span><span class="lex-pin">shénme shíhou fāhuò</span><span class="lex-ru">когда отправите?</span></div>
+          <div class="lex-row"><span class="lex-cn">谢谢</span><span class="lex-pin">xièxiè</span><span class="lex-ru">спасибо</span></div>
+        </div>
+      </div>
+
+      <!-- БРЕНДЫ ПО-КИТАЙСКИ -->
+      <div class="memo-section">
+        <div class="section-title">Бренды по-китайски</div>
+        <div class="templates-hint">
+          🔎 Скопируй иероглифы в поиск площадки. Удобно для Taobao, 1688, Weidian, Poizon, Xianyu и других китайских площадок.
+        </div>
+        <input class="form-input" type="search" name="brandFilter" id="brandFilter" placeholder="Найти бренд: nike, шанель, 古驰..." autocomplete="off" oninput="filterBrands()" aria-label="Фильтр по списку брендов" style="margin-bottom:10px;">
+        <div class="memo-card" id="brandList" style="max-height:400px;overflow-y:auto;"></div>
+        <div class="text-muted" style="margin-top:6px;">⚠️ — транскрипция требует проверки перед использованием</div>
+      </div>
+    </div>
+    <div class="bottombar">
+      <button class="btn-primary" onclick="go(2)">← Вернуться к шагам заказа</button>
+    </div>
+  </div>
+
+  <!-- ═══ ЭКРАН 6: ИТОГ ЗАКАЗА ═══ -->
+  <div class="screen" id="s5">
+    <div class="app-header">
+      <div class="logo">ПО<span>ШАГАМ</span></div>
+      <button class="back-btn" onclick="go(0)" aria-label="К списку заказов">← Список</button>
+    </div>
+    <div class="screen-content">
+      <div class="result-hero">
+        <div class="result-checkmark">✓</div>
+        <div class="result-title">Заказ получен!</div>
+        <div class="result-sub">Все 23 шага закрыты с доказательствами</div>
+      </div>
+      <div class="waybill">
+        <div class="waybill-header">
+          <div class="waybill-header-title">Итоговая накладная</div>
+          <div class="waybill-num">#LC-2026-0041</div>
+        </div>
+        <div class="waybill-body">
+          <div class="waybill-row"><span class="waybill-key">Товар</span><span class="waybill-val">Светильники × 3 шт.</span></div>
+          <div class="waybill-row"><span class="waybill-key">Платформа</span><span class="waybill-val">taobao.com</span></div>
+          <div class="waybill-row"><span class="waybill-key">Карго</span><span class="waybill-val">CM-38847</span></div>
+          <div class="waybill-row"><span class="waybill-key">Вес факт.</span><span class="waybill-val">1,8 кг</span></div>
+          <div class="waybill-row"><span class="waybill-key">Трек Китай</span><span class="waybill-val">CN441298870SZ</span></div>
+          <div class="waybill-row"><span class="waybill-key">Трек РФ</span><span class="waybill-val">RU80744129MO</span></div>
+          <div class="waybill-row"><span class="waybill-key">Стоимость</span><span class="waybill-val">¥ 738 / 8 820 ₽</span></div>
+          <div class="waybill-row"><span class="waybill-key">Доставка</span><span class="waybill-val">130 ₽</span></div>
+          <div class="waybill-row"><span class="waybill-key" style="font-weight:700;">ИТОГО</span><span class="waybill-val yellow">8 950 ₽</span></div>
+          <div class="waybill-row"><span class="waybill-key">Период</span><span class="waybill-val green">14.06 → 09.07 · 25 дней</span></div>
+        </div>
+      </div>
+      <div class="section-title">Доказательства — 7 файлов</div>
+      <div class="proofs-list">
+        <div class="proof-item"><span class="proof-item-icon">📸</span><span class="proof-item-name">Верификация Alipay</span><span class="proof-item-badge">СКРИНШОТ</span></div>
+        <div class="proof-item"><span class="proof-item-icon">📸</span><span class="proof-item-name">Чек оплаты ¥ 738</span><span class="proof-item-badge">СКРИНШОТ</span></div>
+        <div class="proof-item"><span class="proof-item-icon">📦</span><span class="proof-item-name">Трек CN441298870SZ</span><span class="proof-item-badge">ТРЕКИНГ</span></div>
+        <div class="proof-item"><span class="proof-item-icon">📸</span><span class="proof-item-name">Фото товара на складе</span><span class="proof-item-badge">ФОТО</span></div>
+        <div class="proof-item"><span class="proof-item-icon">📸</span><span class="proof-item-name">Консолидация — кабинет</span><span class="proof-item-badge">СКРИНШОТ</span></div>
+        <div class="proof-item"><span class="proof-item-icon">📦</span><span class="proof-item-name">Трек РФ RU80744129MO</span><span class="proof-item-badge">ТРЕКИНГ</span></div>
+        <div class="proof-item"><span class="proof-item-icon">🎬</span><span class="proof-item-name">Видео распаковки 09.07</span><span class="proof-item-badge">ВИДЕО</span></div>
+      </div>
+      <div class="final-stamp">
+        <div class="final-stamp-mark">ЗАКРЫТ</div>
+        <div class="final-stamp-date">09.07.2026 · 16:48 · Москва</div>
+      </div>
+    </div>
+    <div class="bottombar">
+      <button class="btn-primary" onclick="go(1)">Создать новый заказ</button>
+      <button class="btn-secondary" onclick="go(0)">К списку заказов</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var cur = 0, proofDone = false;
+function go(n) {
+  document.getElementById('s'+cur).classList.remove('active');
+  document.getElementById('s'+n).classList.add('active');
+  cur = n;
+  document.querySelectorAll('.screen-dot').forEach(function(d,i){ d.classList.toggle('active', i===n); });
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('.screen-dot').forEach(function(d){
+  d.addEventListener('click', function(){ go(+d.dataset.s); });
+});
+/* Копирование фраз — clipboard API + fallback для file:// */
+function copyPhrase(btn, id) {
+  var text = document.getElementById(id).textContent.trim();
+  function ok() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<span>✓</span> Скопировано!';
+    btn.classList.add('copied');
+    setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(function(){ fallbackCopy(text, ok); });
+  } else {
+    fallbackCopy(text, ok);
+  }
+}
+/* ═══ СКРИПТ-БИЛДЕР: сценарии диалога ═══ */
+var SCRIPTS = {
+  contact: { title: 'Первый контакт', lines: [
+    ['Приветствие', '你好老板🤝', '«Здравствуйте, босс» — стандартное вежливое обращение'],
+    ['Интерес + перспектива', '我想买个样品，希望可以长期合作。', '«Хочу купить образец, надеюсь на долгосрочное сотрудничество»'],
+    ['Каталог', '请发一下产品目录。', '«Пришлите, пожалуйста, каталог товаров»']
+  ]},
+  product: { title: 'Уточнение товара', lines: [
+    ['Размеры', '你好，请问有尺码表吗？', '«Здравствуйте, есть ли таблица размеров?»'],
+    ['Реальные фото', '有没有实物图？还有没有其他的图片？', '«Есть реальные фото? И ещё другие фотографии?»'],
+    ['Вес', '箱子多重？', '«Сколько весит коробка?»'],
+    ['Размер и вес для карго', '请问这个商品的具体尺寸和重量是多少？我需要计算国际运费。', '«Точные размеры и вес? Нужно рассчитать международную доставку»']
+  ]},
+  packing: { title: 'Упаковка и фото', lines: [
+    ['Как упакуют', '可以看一下货物是怎么包装的吗？有没有其他包装？', '«Можно посмотреть, как упакован товар? Есть ли другая упаковка?»'],
+    ['Хрупкий товар', '亲爱的，我的订单将去俄罗斯。 路很长，搬运工正在丢弃货物。 我很担心这个产品。 请妥善包装并贴上易碎物品的标签.', '«Заказ поедет в Россию, путь долгий. Упакуйте надёжно + маркировка "хрупкое"»'],
+    ['Реальные фото производства', '请提供工厂真实的生产照片和视频，不接受宣传图片。', '«Пришлите реальные фото и видео производства, рекламные картинки не принимаются»']
+  ]},
+  delivery: { title: 'Доставка', lines: [
+    ['Когда отправка', '请问什么时候发货？发货要等几天？', '«Когда отправите? Сколько дней ждать отправки?»'],
+    ['Трек-номер', '您好，请问订单发货了吗？麻烦告诉我快递单号，我需要跟踪包裹。', '«Заказ отправлен? Пришлите трек-номер — нужно отслеживать посылку»'],
+    ['Дорогая доставка', '运费有点贵，可以便宜点吗？', '«Доставка дороговата, можно подешевле?»']
+  ]},
+  bargain: { title: 'Торг', lines: [
+    ['Сильная позиция', '我们做外贸出口的，需求量很大，如果产品质量不错的话我们可以长期合作的。', '«Мы занимаемся внешней торговлей, объёмы большие. Если качество хорошее — готовы к долгосрочному сотрудничеству»'],
+    ['Скидка', '可以优惠点吗？可以打个折吗？', '«Можно скидку? Можно дисконт?»'],
+    ['Цена → заказ', '如果价格是___元，我们准备下订单。以后订单数量会增加。', '«Если цена будет ___ юаней — разместим заказ. Объёмы будут расти»'],
+    ['Рекомендация', '如果价格优惠的话我会推荐朋友来找你买。', '«Если цена будет выгодной — порекомендую вас друзьям»']
+  ]},
+  factory: { title: 'Клиент просит контакт фабрики (ответ клиенту, по-русски)', lines: [
+    ['Готовый ответ', 'Понимаю ваш интерес к производителю! Однако фабрика — это лишь часть цепочки. Настоящая ценность в моей экспертизе: я уже отобрала для вас 3 фабрики, которые подходят по цене и качеству, проверила их на реальные отзывы и готовность к малым партиям. Моя работа — убрать риски, с которыми вы столкнётесь при прямом общении (языковой барьер, минимальный заказ 1000 шт, проблемы с логистикой). Давайте я покажу вам лучшее коммерческое предложение по этим фабрикам, а уже после мы обсудим детали производства?', 'Скрипт защиты своей роли посредника — отправлять клиенту, не поставщику']
+  ]}
+};
+var currentScriptKey = null;
+function buildScript(key) {
+  currentScriptKey = key;
+  var s = SCRIPTS[key];
+  var html = '<div style="font-size:12px;color:var(--yellow);font-family:var(--font-head);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">' + s.title + '</div>';
+  /* [Вердикт владельца 2026-07-12] явно показываем, кто с кем взаимодействует */
+  html += key === 'factory'
+    ? '<div style="background:#7A5E00;color:#fff;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;">📤 Кому отправлять: ВАШЕМУ КЛИЕНТУ (по-русски). Поставщику не отправлять!</div>'
+    : '<div style="background:var(--indigo);color:#fff;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:10px;">📤 Кому отправлять: поставщику — в чат 1688 / Taobao / WeChat (по-китайски)</div>';
+  s.lines.forEach(function(l, i) {
+    html += '<div class="script-line"><div class="script-line-step">Шаг ' + (i+1) + ' · ' + l[0] + '</div>' +
+            '<div class="script-line-cn">' + l[1] + '</div>' +
+            '<div class="script-line-ru">' + l[2] + '</div></div>';
+  });
+  var box = document.getElementById('scriptResult');
+  box.innerHTML = html;
+  box.classList.add('visible');
+  document.getElementById('scriptCopyBtn').style.display = 'inline-flex';
+}
+function copyScript(btn) {
+  if (!currentScriptKey) return;
+  var text = SCRIPTS[currentScriptKey].lines.map(function(l){ return l[1]; }).join('\n\n');
+  function ok() {
+    var orig = btn.innerHTML;
+    btn.innerHTML = '<span>✓</span> Скрипт скопирован!';
+    btn.classList.add('copied');
+    setTimeout(function(){ btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(function(){ fallbackCopy(text, ok); });
+  } else { fallbackCopy(text, ok); }
+}
+/* ═══ СЛОВАРЬ БРЕНДОВ — первоисточник: список владельца 2026-07-12 (98) + дополнения Creator (36). ⚠️ = проверить транскрипцию ═══ */
+var BRANDS = [
+  /* — Список владельца (дословно) — */
+  ['Chanel','香奈儿','Шанель',0],['Louis Vuitton','路易威登','Луи Виттон',0],['Gucci','古驰 / 古奇','Гуччи',0],
+  ['Hermès','爱马仕','Эрмес',0],['Dior','迪奥','Диор',0],['Prada','普拉达','Прада',0],
+  ['Yves Saint Laurent / Saint Laurent','圣罗兰','Сен-Лоран',0],['Balenciaga','巴黎世家','Баленсиага',0],
+  ['Versace','范思哲','Версаче',0],['Fendi','芬迪','Фенди',0],['Burberry','博柏利','Бёрберри',0],
+  ['Valentino','华伦天奴','Валентино',0],['Givenchy','纪梵希','Живанши',0],['Bottega Veneta','葆蝶家','Боттега Венета',0],
+  ['Alexander McQueen','麦昆','Маккуин',0],['Dolce & Gabbana','杜嘉班纳','Дольче Габбана',0],
+  ['Cartier','卡地亚','Картье',0],['Rolex','劳力士','Ролекс',0],['Tiffany & Co.','蒂芙尼','Тиффани',0],
+  ['Zara','飒拉','Зара',0],['H&M','海恩斯莫里斯 / H&M','Эйч-энд-Эм',0],['Nike','耐克','Найк',0],
+  ['Adidas','阿迪达斯','Адидас',0],['Uniqlo','优衣库','Юникло',0],['Bershka','贝尔莎','Бершка',0],
+  ['Pull&Bear','拉尔夫熊','Пул-энд-Беар',1],['Massimo Dutti','马西莫杜蒂','Массимо Дутти',0],
+  ['Stradivarius','斯特拉迪瓦里','Страдивариус',0],['Mango','芒果','Манго',0],['Forever 21','永远21','Форевер 21',0],
+  ['Shein','希音','Шеин',0],['ASOS','艾索斯','Асос',0],["Victoria's Secret",'维多利亚的秘密','Виктория Сикрет',0],
+  ['Calvin Klein','卡尔文·克莱恩','Кельвин Кляйн',0],['Ralph Lauren','拉夫·劳伦','Ральф Лорен',0],
+  ['Michael Kors','迈克·科尔斯','Майкл Корс',0],['Coach','蔻驰','Коуч',0],['Moncler','蒙克勒','Монклер',0],
+  ['Off-White','オフホワイト','Офф-Уайт — чаще английское название',1],['Supreme','潮牌 Supreme / 至尊','Суприм',0],
+  ['Balmain','巴尔曼','Бальмен',0],['Giorgio Armani','乔治·阿玛尼','Джорджо Армани',0],
+  ['Marc Jacobs','马克·雅可布','Марк Джейкобс',0],['Kenzo','高田贤三','Кензо',0],['Loewe','罗意威','Лоэве',0],
+  ['Miu Miu','缪缪','Миу Миу',0],['Celine','思琳 / 赛琳','Селин',0],['Chloé','蔻依','Хлое',0],
+  ['Jimmy Choo','周仰杰','Джимми Чу',0],['Salvatore Ferragamo','菲拉格慕','Феррагамо',0],
+  ['Loro Piana','罗罗·皮安娜','Лоро Пьяна',0],['Brunello Cucinelli','布鲁内罗·库奇内利','Брунелло Кучинелли',0],
+  ['Max Mara','麦丝玛拉','Макс Мара',0],['Isabel Marant','伊莎贝尔·玛兰','Изабель Маран',0],
+  ['Acne Studios','痤疮工作室','Акне Студиос — чаще Acne',1],['Stella McCartney','斯特拉·麦卡特尼','Стелла Маккартни',0],
+  ['Rick Owens','瑞克·欧文斯','Рик Оуэнс',0],['Vetements','维特蒙斯','Ветмон',0],
+  ['Palm Angels','棕榈天使','Палм Энджелс',0],['Fear of God','敬畏上帝','Фир оф Год',0],
+  ['Stone Island','石头岛','Стоун Айленд',0],['The North Face','北面','Норт Фейс',0],
+  ['Patagonia','巴塔哥尼亚','Патагония',0],['Columbia','哥伦比亚','Коламбия',0],["Levi's",'李维斯','Ливайс',0],
+  ['Gap','盖璞','Гэп',0],['Old Navy','老海军','Олд Нейви',0],['American Eagle','美国鹰','Американ Игл',0],
+  ['Hollister','霍利斯特','Холлистер',0],['Abercrombie & Fitch','阿伯克龙比&费奇','Аберкромби Фитч',0],
+  ['Lacoste','鳄鱼','Лакост («крокодил»)',0],['Polo Ralph Lauren','马球 Ralph Lauren','Поло Ральф Лорен',0],
+  ['Hugo Boss','雨果博斯','Хуго Босс',0],['Diesel','迪塞尔','Дизель',0],['Guess','盖斯','Гесс',0],
+  ['Desigual','迪赛瓜尔','Десигуаль',0],['Primark','普里马克','Праймарк',0],['Boohoo','布呼','Бухху',0],
+  ['Fashion Nova','时尚新星','Фэшн Нова',0],['PrettyLittleThing','漂亮小东西','ПЛТ',0],
+  ['Romwe','热风','Ромви',0],['Zaful','扎芙','Зафул',0],['Lululemon','露露柠檬','Лулулемон',0],
+  ['Under Armour','安德玛','Андер Армор',0],['Puma','彪马','Пума',0],['New Balance','新百伦','Нью Бэланс',0],
+  ['Reebok','锐步','Рибок',0],['Converse','匡威','Конверс',0],['Vans','万斯','Ванс',0],
+  ['Timberland','添柏岚','Тимберленд',0],['Dr. Martens','马丁博士','Мартенсы',0],
+  ['Birkenstock','比肯斯托克','Биркенштоки',0],['UGG','澳洲UGG','Угг',0],['Skechers','斯凯奇','Скетчерс',0],
+  ['Crocs','卡骆驰','Крокс',0],['Jordan','乔丹','Джордан',0],['Bape','猿人猿 / 阿ape','Бейп',1],
+  ['Comme des Garçons','川久保玲 / 玩 Comme','Ком де Гарсон',0],
+  /* — Дополнено Creator — */
+  ['Omega','欧米茄','Омега',0],['Bvlgari','宝格丽','Булгари',0],['Tommy Hilfiger','汤米希尔费格','Томми Хилфигер',1],
+  ['Canada Goose','加拿大鹅','Канада Гус',0],["Arc'teryx",'始祖鸟','Арктерикс',0],['Asics','亚瑟士','Асикс',0],
+  ['Fila','斐乐','Фила',0],['Salomon','萨洛蒙','Саломон',0],['Decathlon','迪卡侬','Декатлон',0],
+  ['Li-Ning','李宁','Ли Нин',0],['Anta','安踏','Анта',0],['Clarks','其乐','Кларкс',0],['Ecco','爱步','Экко',0],
+  ['Apple','苹果','Эппл',0],['Samsung','三星','Самсунг',0],['Xiaomi','小米','Сяоми',0],
+  ['Huawei','华为','Хуавей',0],['Sony','索尼','Сони',0],['Dyson','戴森','Дайсон',0],
+  ['Lenovo','联想','Леново',0],['Canon','佳能','Кэнон',0],['DJI','大疆','ДиДжиАй',0],
+  ["L'Oréal",'欧莱雅','Лореаль',0],['Estée Lauder','雅诗兰黛','Эсте Лаудер',0],['Lancôme','兰蔻','Ланком',0],
+  ['Shiseido','资生堂','Шисейдо',0],['La Mer','海蓝之谜','Ля Мер',0],['Clinique','倩碧','Клиник',0],
+  ['Sephora','丝芙兰','Сефора',0],["Kiehl's",'科颜氏','Кильс',0],['IKEA','宜家','Икеа',0],
+  ['Lego','乐高','Лего',0],['Disney','迪士尼','Дисней',0],['Swarovski','施华洛世奇','Сваровски',0],
+  ['Pandora','潘多拉','Пандора',0],['Casio','卡西欧','Касио',0]
+];
+function renderBrands(list) {
+  var box = document.getElementById('brandList');
+  if (!box) return;
+  if (!list.length) { box.innerHTML = '<div class="text-muted" style="padding:10px 0;">Не найдено — попробуйте латиницей или по-русски</div>'; return; }
+  box.innerHTML = list.map(function(b){
+    return '<div class="lex-row"><span class="lex-cn" style="min-width:90px;">' + b[1] + (b[3] ? ' ⚠️' : '') + '</span>' +
+           '<span class="lex-ru" style="flex:1;"><strong>' + b[0] + '</strong> · ' + b[2] + '</span></div>';
+  }).join('');
+}
+function filterBrands() {
+  var q = document.getElementById('brandFilter').value.trim().toLowerCase();
+  if (!q) { renderBrands(BRANDS); return; }
+  renderBrands(BRANDS.filter(function(b){
+    return b[0].toLowerCase().indexOf(q) >= 0 || b[1].indexOf(q) >= 0 || b[2].toLowerCase().indexOf(q) >= 0;
+  }));
+}
+renderBrands(BRANDS);
+function fallbackCopy(text, cb) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  cb();
+}
+/* Имитация загрузки доказательства */
+function simulateUpload() {
+  if (proofDone) return;
+  var ua = document.getElementById('uploadArea');
+  ua.innerHTML = '<span class="proof-upload-icon">⏳</span><div class="proof-upload-text"><div class="proof-upload-title" style="color:var(--gray-400)">Загружается...</div></div>';
+  setTimeout(function(){
+    ua.style.display = 'none';
+    document.getElementById('uploadedBox').style.display = 'flex';
+    document.getElementById('activeProofText').textContent = '📸 foto_sklad_11_07.jpg · 11.07';
+    proofDone = true;
+  }, 1100);
+}
+/* Подтверждение шага → штамп + прогресс */
+function completeStep() {
+  var btn = document.getElementById('completeBtn');
+  btn.textContent = '✓ Шаг подтверждён!';
+  btn.style.background = 'var(--green)';
+  btn.style.color = 'white';
+  btn.disabled = true;
+  setTimeout(function(){
+    var card = document.getElementById('activeStep');
+    card.classList.remove('active-step');
+    card.querySelector('.step-status-bar').className = 'step-status-bar done';
+    card.querySelector('.step-icon').className = 'step-icon done';
+    card.querySelector('.step-icon').textContent = '✅';
+    card.querySelector('.step-proof').className = 'step-proof done';
+    card.querySelector('.step-proof').textContent = '📸 foto_sklad_11_07.jpg · 11.07';
+    document.getElementById('activeBody').style.display = 'none';
+    var s = document.createElement('div');
+    s.className = 'step-stamp';
+    s.innerHTML = '<span class="stamp-mark">СДЕЛАНО</span>';
+    card.querySelector('.step-main').appendChild(s);
+    document.getElementById('gpf').style.width = '57%';
+    document.getElementById('bottomFill').style.width = '57%';
+    document.getElementById('stepNum').textContent = '13';
+    document.getElementById('stepPct').textContent = '57%';
+    document.getElementById('bn').textContent = '13';
+    document.getElementById('bp').textContent = '57%';
+    /* [Вердикт владельца 2026-07-12] следующий шаг раскрывает свою подсказку в контексте */
+    var nh = document.getElementById('nextHint');
+    if (nh) { nh.style.display = 'block'; }
+    var nc = document.getElementById('nextStepCard');
+    if (nc && nc.scrollIntoView) { nc.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }, 700);
+}
+</script>
+</body>
+</html>
