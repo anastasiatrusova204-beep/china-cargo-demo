@@ -386,6 +386,16 @@
   .screen-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(245,200,66,.4); cursor: pointer; transition: width 0.2s; }
   .screen-dot.active { background: var(--yellow); width: 18px; border-radius: 3px; }
   .text-muted { color: var(--gray-400); font-size: 12px; }
+  /* ВВОДНАЯ ПЛАШКА ДЕМО — поясняет, что это макет с примером данных, не реальный кабинет */
+  .demo-banner {
+    background: var(--indigo-light); border: 1.5px solid rgba(27,42,107,.16);
+    border-radius: var(--radius-md); padding: 13px 14px; margin-bottom: 16px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .demo-banner-icon { font-size: 17px; line-height: 1.3; flex-shrink: 0; }
+  .demo-banner-text { font-size: 12.5px; color: var(--gray-700); line-height: 1.5; }
+  .demo-banner-text strong { color: var(--indigo); }
+  .demo-note { color: var(--gray-400); font-size: 11px; font-weight: 400; }
   /* КОНТЕКСТНЫЕ ПОДСКАЗКИ — трекер сам предлагает фразу на шаге */
   .ctx-hint {
     background: var(--yellow-dim); border: 1.5px solid var(--yellow);
@@ -480,6 +490,10 @@
       <div style="font-size:12px;color:rgba(255,255,255,.5);font-family:var(--font-head);">beta</div>
     </div>
     <div class="screen-content">
+      <div class="demo-banner">
+        <div class="demo-banner-icon">👀</div>
+        <div class="demo-banner-text">Это демо-версия — показывает, как будет выглядеть готовый трекер. Все поля ниже уже заполнены примером заказа, чтобы вы увидели весь путь от заявки до получения. Листайте и жмите на всё — это безопасно, ничего реального не отправляется.</div>
+      </div>
       <div class="orders-welcome">
         <div class="welcome-label">Трекер закупок</div>
         <div class="welcome-title">Привет, Анастасия 👋</div>
@@ -532,8 +546,11 @@
     </div>
     <div class="screen-content">
       <div style="font-size:20px;font-weight:700;margin-bottom:6px;">Новый заказ</div>
-      <div style="display:inline-block;background:var(--indigo);color:#fff;border-radius:8px;padding:6px 12px;font-family:var(--font-head);font-size:13px;margin-bottom:8px;">Ваш номер клиента: <strong style="color:var(--yellow);">CM-38847</strong></div>
-      <div class="text-muted" style="margin-bottom:20px;">Заполните — система рассчитает сроки и стоимость</div>
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+        <div style="display:inline-block;background:var(--indigo);color:#fff;border-radius:8px;padding:6px 12px;font-family:var(--font-head);font-size:13px;">Ваш номер клиента: <strong style="color:var(--yellow);">CM-38847</strong></div>
+        <span class="demo-note">(пример для демонстрации)</span>
+      </div>
+      <div class="text-muted" style="margin-bottom:20px;">Пример заполненной заявки — так будет выглядеть расчёт сроков и стоимости</div>
       <div class="form-section">
         <div class="form-label">Название товара</div>
         <input class="form-input" type="text" name="product" autocomplete="off" value="Напольные лампы японский минимализм × 2 шт.">
@@ -606,7 +623,7 @@
       </div>
 
       <div class="estimate-box">
-        <div class="estimate-label">Предварительный расчёт</div>
+        <div class="estimate-label">Предварительный расчёт <span class="demo-note">(пример расчёта, не реальная формула)</span></div>
         <div class="estimate-row"><span class="estimate-key">Стоимость товара</span><span class="estimate-val">¥ 486 (~5 800 ₽)</span></div>
         <div class="estimate-row"><span class="estimate-key">Доставка карго (2,4 кг)</span><span class="estimate-val">173 ₽</span></div>
         <div class="estimate-row"><span class="estimate-key">Комиссия Alipay ~3%</span><span class="estimate-val">174 ₽</span></div>
@@ -1141,10 +1158,6 @@
             <strong>Weidian (微店)</strong> — витрины мелких продавцов и фабрик, часто то, чего нет на Taobao.<br>
             <strong>Xianyu (闲鱼)</strong> — вторичка и остатки, самые низкие цены.
           </div>
-        </div>
-        <div class="memo-card">
-          <div class="memo-title">База поставщиков — то, чего нет на площадках</div>
-          <div class="memo-text">Есть контакты с товарами, которых нет на площадках: добавляйте в друзья (WeChat), смотрите моменты, спрашивайте каталоги.</div>
         </div>
       </div>
 
